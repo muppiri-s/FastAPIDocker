@@ -1,0 +1,4 @@
+from src.inference import YoloInference
+from asset.config import config
+# Initialize the YOLO detector with the model path from configuration
+detector = YoloInference(config.get("model", {}).get("MODEL_PATH", "))

@@ -1,0 +1,17 @@
+# PyTorch packages
+-f https://download.pytorch.org/whl/cpu/torch_stable.html
+torch==2.3.1+cpu
+torchvision==0.18.1+cpu
+ 
+# FastAPI and related packages
+fastapi==0.95.0 # Use the latest stable version of FastAPI
+mangum==0.12.0 # Use the latest stable version of Mangum for AWS Lambda integration
+python-multipart # Required for handling multipart form data in FastAPI
+ 
+# AWS SDK
+boto3==1.26.0 # Adjust based on AWS SDK requirements
+ 
+# Other packages
+dill==0.3.6 # Serialization library
+Jinja2==3.1.2 # Templating engine
+ultralytics # Adjust version as needed

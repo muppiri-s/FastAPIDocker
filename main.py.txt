@@ -1,0 +1,117 @@
+from fastapi import UploadFile, File
+@app.post("/upload_image")
+async def upload_image_endpoint(file: UploadFile = File(…)):
+    """
+    Endpoint to upload an image to S3.
+    Args:
+        file (UploadFile): The file to be uploaded.
+    Returns:
+        JSONResponse: A JSON response indicating success or failure.
+    """
+    try:
+        image_data = await file.read()
+        key = file.filename
+        response = upload_image_to_s3(image_data, key)
+        return JSONResponse(content=response)
+    except Exception as e:
+        logging.error(f"Error uploading image: {e}")
+        raise HTTPException(status_code=500, detail="Image upload failed")
+
+# Upload images to S3
+def upload_image_to_s3(image: bytes, key: str):   
+    """
+    Upload an image to an S3 bucket.
+    Args:
+        image (bytes): The image data to be uploaded.
+        key (str): The key (filename) for the image in S3.
+    Returns:
+        dict: A response dictionary indicating success or failure.
+    """
+    region_name = os.environ.get('REGION')
+    bucket_name = os.environ.get('BUCKET_NAME')
+    s3_client = boto3.client('s3', region_name)
+    try:
+        s3_client.put_object(Bucket=bucket_name, Key=key, Body=image)
+        return {"message": "Image uploaded successfully"}
+    except Exception as e:
+        logging.error(f"Error uploading image to S3: {e}")
+        return {"error": "Failed to upload image"}
+
+#Download images from S3
+import cv2
+import numpy as np
+import boto3
+import os
+def download_image_from_s3(path: str):
+    """
+    Download an image from an S3 bucket and convert it to an OpenCV frame.
+    Args:
+        path (str): The key (filename) of the image in S3.
+    Returns:
+        np.ndarray: The image frame as a NumPy array, or None if the download fails.
+    """
+    region_name = os.environ.get('REGION')
+    bucket_name = os.environ.get('BUCKET_NAME')
+    s3_client = boto3.client('s3', region_name)
+    try:
+        response = s3_client.get_object(Bucket=bucket_name, Key=path)
+        image_data = response['Body'].read()
+        np_array = np.frombuffer(image_data, np.uint8)
+        frame = cv2.imdecode(np_array, cv2.IMREAD_COLOR)
+        return frame
+    except Exception as e:
+        logging.error(f"Error downloading image from S3: {e}")
+        return None
+
+
+#Process images via API Endpoints
+from fastapi import HTTPException
+from fastapi.responses import JSONResponse
+@app.get("/process_frame")
+async def process_frame_endpoint(key: str):
+    """
+    Endpoint to process an image frame from S3.
+    Args:
+        key (str): The key (filename) of the image in S3.
+    Returns:
+        JSONResponse: A JSON response containing the count of detected objects.
+    """
+    frame = download_image_from_s3(key)
+    if frame is None:
+        raise HTTPException(status_code=400, detail="Could not read the image file.")
+    count = process_frame(frame)
+    return JSONResponse(content={"count": count})
+
+
+#Process image frames
+def process_frame(frame):
+    """
+    Process the given frame using the PillTracker and YOLO detector.
+    Args:
+        frame (np.ndarray): The image frame to be processed.
+    Returns:
+        int: The count of detected objects.
+    """
+    pill_tracker = PillTracker(frame, detector)
+    count, processed_frame = pill_tracker.process_frame()
+    return count
+
+#Create Home Page
+from fastapi.templating import Jinja2Templates
+from starlette.requests import Request
+templates = Jinja2Templates(directory="templates")
+@app.get("/")
+def welcome(request: Request):
+    """
+    Welcome page rendered with an HTML template.
+    Args:
+        request (Request): The request object for the page.
+    Returns:
+        TemplateResponse: The HTML template response.
+    """
+    return templates.TemplateResponse("index.html", {"request": request})
+
+#AWS Lambda integration
+import mangum
+# Create Mangum handler for AWS Lambda integration
+lambda_handler = mangum.Mangum(app)
